@@ -8,22 +8,52 @@ import RightPanel from './components/common/RightPanel'
 import NotificationPage from './pages/notifications/NotificationPage'
 import ProfilePage from './pages/profile/ProfilePage'
 import { Toaster } from 'react-hot-toast'
+import { useQuery } from '@tanstack/react-query'
+import { Navigate } from 'react-router-dom'
 
 function App() {
   const [count, setCount] = useState(0)
 
+  const { data: authUser, isLoading, isError, error } = useQuery({
+    queryKey: ['authData'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/auth/me')
+        const data = await response.json()
+        console.log('data', data)
+        if (data.error) {
+          return null
+        }
+
+        if (!response.ok || data.message === "Unauthorized: No Token Provided") {
+          return null; // Return null if unauthorized
+        }
+
+        if (data.error) {
+          throw new Error(data.error)
+        }
+        return data
+      } catch (error) {
+        throw error
+      }
+    },
+    retry: 1,
+  })
+
+  console.log('authUser', authUser)
+
   return (
     <>
       <div className="flex max-w-6xl mx-auto">
-        <Sidebar />
+        {authUser && <Sidebar />}
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/notifications" element={<NotificationPage />} />
-          <Route path="/profile/johndoe" element={<ProfilePage />} />
+          <Route path="/" element={authUser ? <HomePage /> : <Navigate to='/login' />} />
+          <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to='/' />} />
+          <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to='/' />} />
+          <Route path="/notifications" element={authUser ? <NotificationPage /> : <Navigate to='/login' />} />
+          <Route path="/profile/johndoe" element={authUser ? <ProfilePage /> : <Navigate to='/login' />} />
         </Routes>
-        <RightPanel />
+        {authUser && <RightPanel />}
         <Toaster />
       </div>
     </>
